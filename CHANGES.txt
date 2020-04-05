@@ -1,4 +1,8 @@
-﻿v1.2
+﻿v1.3
+----
+5 April 2020: code updated to Python 3.7.
+
+v1.2
 ----
 
 5 April 2002: New dictionary-based interface, compatible with
