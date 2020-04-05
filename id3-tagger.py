@@ -9,7 +9,7 @@
 # This program is released under the GNU GPL, version 2 or later.
 
 import getopt
-import re
+# import re
 import sys
 
 from ID3 import *
@@ -69,31 +69,33 @@ def main():
         sys.exit(2)
 
     for file in args:
-        try:
-            id3info = ID3(file)
+        # try:
+        id3info = ID3(file)
 
-            needs_write = 0
+        # needs_write = 0
 
-            if len(options.keys()) > 0:
-                needs_write = 1
+        # if len(options.keys()) > 0:
+        #     needs_write = 1
 
-            for k, v in options.items():
-                if k == 'GENRE' and re.match("d+$", v):
-                    id3info[k] = int(v)
-                else:
-                    id3info[k] = v
+        # for k, v in options.items():
+        #     if k == 'GENRE' and re.match("d+$", v):
+        #         id3info[k] = int(v)
+        #     else:
+        #         id3info[k] = v
+        #
+        # if 'delete' in options:
+        #     id3info.delete()
 
-            if 'delete' in options:
-                id3info.delete()
+        # print(id3info)
 
-                print(id3info)
+        # if needs_write:
+        #     id3info.write()
 
-            if needs_write:
-                id3info.write()
-
-        except InvalidTagError as message:
-            print("Invalid ID3 tag:", message)
-            continue
+        # except InvalidTagError as message:
+        #     print("Invalid ID3 tag:", message)
+        #     continue
+        return id3info
 
 
-main()
+if __name__ == "__main__":
+    print(main())

@@ -132,7 +132,7 @@
 #     See the notes above for the dictionary interface.
 #
 
-import string
+# import string
 
 string_types = [str]
 
@@ -144,13 +144,13 @@ def lengthen(strng, num_spaces):
 
 # We would normally use string.rstrip(), but that doesn't remove \0 characters.
 def strip_padding(s):
-    while len(s) > 0 and s[-1] in string.whitespace + "\0":
+    while len(s) > 0 and s[-1] == 0:
         s = s[:-1]
 
-    return s
+    return str(s, 'utf-8')
 
 
-class InvalidTagError:
+class InvalidTagError(BaseException):
     def __init__(self, msg):
         self.msg = msg
 
@@ -212,62 +212,62 @@ class ID3:
         self.has_tag = 0
         self.had_tag = 0
 
-        try:
-            self.file.seek(-128, 2)
+        # try:
+        self.file.seek(-128, 2)
 
-        except IOError as msg:
-            self.modified = 0
-            raise InvalidTagError("Can't open %s: %s" % (self.filename, msg))
+        # except IOError as msg:
+        #     self.modified = 0
+        #     raise InvalidTagError("Can't open %s: %s" % (self.filename, msg))
 
-        try:
-            if self.file.read(3) == 'TAG':
-                self.has_tag = 1
-                self.had_tag = 1
-                self.title = self.file.read(30)
-                self.artist = self.file.read(30)
-                self.album = self.file.read(30)
-                self.year = self.file.read(4)
-                self.comment = self.file.read(30)
+        # try:
+        # print(self.file.read(3))
+        if self.file.read(3) == b'TAG':
+            self.has_tag = 1
+            self.had_tag = 1
+            self.title = self.file.read(30)
+            self.artist = self.file.read(30)
+            self.album = self.file.read(30)
+            self.year = self.file.read(4)
+            self.comment = self.file.read(30)
+        # if (self.comment[-2]) == 0 and (self.comment[-1]) != 0:
+            self.track = (self.comment[-1])
+            self.comment = self.comment[:-2]
+        # else:
+        #     self.track = None
 
-            if ord(self.comment[-2]) == 0 and ord(self.comment[-1]) != 0:
-                self.track = ord(self.comment[-1])
-                self.comment = self.comment[:-2]
-            else:
-                self.track = None
+        self.genre = int.from_bytes(self.file.read(1), byteorder='big')
 
-            self.genre = ord(self.file.read(1))
+        self.title = strip_padding(self.title)
+        self.artist = strip_padding(self.artist)
+        self.album = strip_padding(self.album)
+        self.year = strip_padding(self.year)
+        self.comment = strip_padding(self.comment)
 
-            self.title = strip_padding(self.title)
-            self.artist = strip_padding(self.artist)
-            self.album = strip_padding(self.album)
-            self.year = strip_padding(self.year)
-            self.comment = strip_padding(self.comment)
+        self.setup_dict()
 
-            self.setup_dict()
-
-        except Exception as msg:
-            self.modified = 0
-            raise InvalidTagError("Invalid ID3 tag in %s: %s" % (self.filename, msg))
-            # self.modified = 0
+        # except Exception as msg:
+        # self.modified = 0
+        # raise InvalidTagError("Invalid ID3 tag in %s: %s" % (self.filename, msg))
+        # # self.modified = 0
 
     def setup_dict(self):
         self.d = {}
         if self.title:
-            self.d["TITLE"] = self.tupleize(self.title)
+            self.d["TITLE"] = self.title
         if self.artist:
-            self.d["ARTIST"] = self.tupleize(self.artist)
+            self.d["ARTIST"] = self.artist, 'utf-8'
         if self.album:
-            self.d["ALBUM"] = self.tupleize(self.album)
+            self.d["ALBUM"] = self.album, 'utf-8'
         if self.year:
-            self.d["YEAR"] = self.tupleize(self.year)
+            self.d["YEAR"] = int(self.year)
         if self.comment:
-            self.d["COMMENT"] = self.tupleize(self.comment)
+            self.d["COMMENT"] = self.comment if not self.comment.isspace() else None
         if self.legal_genre(self.genre):
-            self.d["GENRE"] = self.tupleize(self.genres[self.genre])
+            self.d["GENRE"] = self.genres[self.genre]
         else:
-            self.d["GENRE"] = self.tupleize("Unknown Genre")
+            self.d["GENRE"] = str("Unknown Genre")
         if self.track:
-            self.d["TRACKNUMBER"] = self.tupleize(str(self.track))
+            self.d["TRACKNUMBER"] = self.track
 
     def delete(self):
         self.zero()
@@ -284,12 +284,6 @@ class ID3:
         self.genre = 255  # 'unknown', not 'blues'
         self.setup_dict()
 
-    def tupleize(self, s):
-        if self.as_tuple and type(s) is not tuple:
-            return s
-        else:
-            return s
-
     def find_genre(self, genre_to_find):
         i = 0
         find_me = genre_to_find.lower()
@@ -304,10 +298,9 @@ class ID3:
                 return i
 
     def legal_genre(self, genre):
-        if type(genre) is int and 0 <= genre < len(self.genres):
-            return 1
-        else:
-            return 0
+        if type(genre) is not int:
+            genre = int.from_bytes(genre, byteorder='little')
+        return 0 <= genre < len(self.genres)
 
     def write(self):
         if self.modified:
@@ -355,7 +348,7 @@ class ID3:
                         self.had_tag = 1
                     self.file.flush()
             except IOError as msg:
-                raise InvalidTagError("Cannot write modified ID3 tag to %s: %s" % (self.filename, msg))
+                print(msg)
             else:
                 self.modified = 0
 
@@ -391,32 +384,32 @@ class ID3:
                     self.track = v
                 else:
                     self.track = int(v)
-                self.d[k] = self.tupleize(str(v))
+                self.d[k] = str(str(v))
             elif k == 'GENRE':
                 if type(v) is int:
                     if self.legal_genre(v):
                         self.genre = v
-                        self.d[k] = self.tupleize(self.genres[v])
+                        self.d[k] = str(self.genres[v])
                     else:
                         self.genre = v
-                        self.d[k] = self.tupleize("Unknown Genre")
+                        self.d[k] = str("Unknown Genre")
                 else:
                     self.genre = self.find_genre(str(v))
                     if self.genre == -1:
                         print(v, "not found")
                         self.genre = 255
-                        self.d[k] = self.tupleize("Unknown Genre")
+                        self.d[k] = str("Unknown Genre")
                     else:
                         print(self.genre, v)
-                        self.d[k] = self.tupleize(str(v))
+                        self.d[k] = str(str(v))
             else:
                 self.__dict__[key.lower()] = v
-                self.d[k] = self.tupleize(v)
+                self.d[k] = str(v)
             self.__dict__['modified'] = 1
             self.__dict__['has_tag'] = 1
 
-    def __del__(self):
-        self.write()
+    # def __del__(self):
+        # self.write()
 
     def __str__(self):
         if self.has_tag:
@@ -443,12 +436,12 @@ class ID3:
             self.__dict__['modified'] = 1
             self.__dict__['has_tag'] = 1
             if name == 'track':
-                self.__dict__['d']['TRACKNUMBER'] = self.tupleize(str(value))
+                self.__dict__['d']['TRACKNUMBER'] = str(str(value))
             elif name == 'genre':
                 if self.legal_genre(value):
-                    self.__dict__['d']['GENRE'] = self.tupleize(self.genres[value])
+                    self.__dict__['d']['GENRE'] = self.genres[value]
                 else:
-                    self.__dict__['d']['GENRE'] = self.tupleize('Unknown Genre')
+                    self.__dict__['d']['GENRE'] = str('Unknown Genre')
             else:
-                self.__dict__['d'][name.upper()] = self.tupleize(value)
+                self.__dict__['d'][name.upper()] = str(value)
         self.__dict__[name] = value
